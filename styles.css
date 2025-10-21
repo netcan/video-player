@@ -59,6 +59,59 @@ body {
   font-weight: 600;
 }
 
+.stream-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stream-form__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.stream-form__row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stream-form__input {
+  flex: 1 1 260px;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.stream-form__submit {
+  background: #22c55e;
+  color: #0b0f19;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stream-form__submit:hover {
+  background: #16a34a;
+}
+
+.stream-form__submit:active {
+  background: #15803d;
+}
+
+.stream-form__proxy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #c5c5d3;
+}
+
 .controls select {
   background: rgba(255, 255, 255, 0.06);
   color: inherit;
@@ -103,5 +156,13 @@ body {
 
   .header h1 {
     font-size: 1.5rem;
+  }
+
+  .stream-form__row {
+    flex-direction: column;
+  }
+
+  .stream-form__submit {
+    width: 100%;
   }
 }

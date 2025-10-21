@@ -5,20 +5,26 @@ const qualitySelect = document.getElementById("qualitySelect");
 const reloadButton = document.getElementById("reloadButton");
 const statusLabel = document.getElementById("status");
 const videoEl = document.getElementById("liveVideo");
+const streamForm = document.getElementById("streamForm");
+const streamInput = document.getElementById("streamInput");
+const proxyToggle = document.getElementById("proxyToggle");
 
 let hlsInstance = null;
 let variants = [];
 let currentSourceUrl = "";
+let userInputUrl = REMOTE_STREAM_URL;
 let playbackMode = "idle"; // idle | mse | native | unsupported
+let proxyEnabled = true;
+let pendingLevelIndex = null;
 
 document.addEventListener("DOMContentLoaded", () => {
+  initializeSourceState();
+  initControls();
   void initPlayer();
 });
 
 async function initPlayer() {
-  currentSourceUrl = getStreamUrl();
   setStatus("加载画质信息…");
-
   try {
     await setupPlayback(currentSourceUrl, { forceReload: true });
   } catch (error) {
@@ -27,16 +33,108 @@ async function initPlayer() {
   }
 }
 
-function getStreamUrl() {
+function initializeSourceState() {
   const params = new URLSearchParams(window.location.search);
-  const disableProxy = params.get("proxy") === "0" || params.get("noProxy") === "1";
-  const customSrc = params.get("src");
-  const baseUrl = customSrc || REMOTE_STREAM_URL;
-  const resolved = resolveUrl(baseUrl);
-  if (disableProxy) {
-    return resolved;
+  proxyEnabled = !(params.get("proxy") === "0" || params.get("noProxy") === "1");
+  const rawSrc = params.get("src");
+  userInputUrl = rawSrc ? rawSrc : REMOTE_STREAM_URL;
+
+  try {
+    const absolute = resolveUrl(userInputUrl);
+    currentSourceUrl = proxyEnabled ? ensureProxy(absolute) : absolute;
+  } catch (error) {
+    console.warn("Invalid initial src provided, fallback to default stream.", error);
+    userInputUrl = REMOTE_STREAM_URL;
+    const fallbackAbsolute = resolveUrl(userInputUrl);
+    currentSourceUrl = proxyEnabled ? ensureProxy(fallbackAbsolute) : fallbackAbsolute;
   }
-  return ensureProxy(resolved);
+}
+
+function initControls() {
+  if (streamInput) {
+    streamInput.value = userInputUrl;
+  }
+  if (proxyToggle) {
+    proxyToggle.checked = proxyEnabled;
+    proxyToggle.addEventListener("change", handleProxyToggle);
+  }
+  if (streamForm) {
+    streamForm.addEventListener("submit", handleStreamSubmit);
+  }
+  if (reloadButton && !reloadButton.dataset.bound) {
+    reloadButton.addEventListener("click", () => {
+      void reloadPlayer();
+    });
+    reloadButton.dataset.bound = "true";
+  }
+}
+
+async function handleStreamSubmit(event) {
+  event.preventDefault();
+  if (proxyToggle) {
+    proxyEnabled = proxyToggle.checked;
+  }
+  const value = streamInput ? streamInput.value : "";
+  await loadStream(value);
+}
+
+async function handleProxyToggle() {
+  proxyEnabled = proxyToggle ? proxyToggle.checked : proxyEnabled;
+  await loadStream(streamInput ? streamInput.value : userInputUrl, { updateInputValue: false });
+}
+
+async function loadStream(rawUrl, { updateInputValue = true } = {}) {
+  const trimmed = (rawUrl || "").trim();
+  const candidate = trimmed || REMOTE_STREAM_URL;
+
+  let absolute;
+  try {
+    absolute = resolveUrl(candidate);
+  } catch (error) {
+    console.warn("Invalid stream url.", error);
+    setStatus("请输入合法的 m3u8 地址。");
+    return;
+  }
+
+  userInputUrl = candidate;
+  currentSourceUrl = proxyEnabled ? ensureProxy(absolute) : absolute;
+  pendingLevelIndex = null;
+  variants = [];
+
+  if (updateInputValue && streamInput) {
+    streamInput.value = userInputUrl;
+  }
+  if (proxyToggle) {
+    proxyToggle.checked = proxyEnabled;
+  }
+
+  persistStateToUrl(userInputUrl, proxyEnabled);
+  setStatus("加载流…");
+
+  try {
+    await setupPlayback(currentSourceUrl, { forceReload: true });
+  } catch (error) {
+    console.error(error);
+    setStatus("加载新流失败，请检查地址或网络。");
+  }
+}
+
+async function reloadPlayer() {
+  setStatus("重新载入流…");
+  const previousValue = qualitySelect ? qualitySelect.value : "auto";
+  pendingLevelIndex = getSelectedVariantIndex();
+  try {
+    await setupPlayback(currentSourceUrl, { forceReload: true });
+    if (qualitySelect) {
+      if (qualitySelect.querySelector(`option[value="${previousValue}"]`)) {
+        qualitySelect.value = previousValue;
+      }
+      applyQualitySelection();
+    }
+  } catch (error) {
+    console.error(error);
+    setStatus("重新载入失败，请检查网络。");
+  }
 }
 
 async function setupPlayback(manifestUrl, { forceReload = false } = {}) {
@@ -53,12 +151,14 @@ async function setupPlayback(manifestUrl, { forceReload = false } = {}) {
       try {
         const parsedVariants = await loadVariants(manifestUrl);
         variants = parsedVariants;
-        populateQualityOptions(variants);
-        setStatus("已加载画质选项，可切换。");
+        populateQualityOptions(variants, { preserveSelection: pendingLevelIndex !== null });
+        if (!pendingLevelIndex) {
+          setStatus("已加载画质选项，可切换。");
+        }
       } catch (error) {
         console.warn("Failed to load variants (likely CORS).", error);
         variants = [];
-        populateQualityOptions(variants);
+        populateQualityOptions(variants, { preserveSelection: false });
         setStatus("跨域限制导致无法读取画质列表，仅支持自动画质。");
       }
     }
@@ -87,6 +187,9 @@ function canUseNativeHls(video) {
 function setupWithHlsJs(manifestUrl) {
   return new Promise((resolve, reject) => {
     playbackMode = "mse";
+    const preservedIndex = pendingLevelIndex ?? getSelectedVariantIndex();
+    pendingLevelIndex = preservedIndex;
+
     hlsInstance = new Hls({
       enableWorker: true,
       lowLatencyMode: true,
@@ -95,8 +198,26 @@ function setupWithHlsJs(manifestUrl) {
     const handleManifestParsed = () => {
       const levelVariants = mapLevelsToVariants(hlsInstance.levels || [], manifestUrl);
       variants = levelVariants;
-      populateQualityOptions(variants);
-      setStatus("已使用 hls.js 准备播放。");
+      populateQualityOptions(variants, { preserveSelection: typeof pendingLevelIndex === "number" });
+
+      if (typeof pendingLevelIndex === "number" && pendingLevelIndex >= 0) {
+        if (pendingLevelIndex < hlsInstance.levels.length) {
+          hlsInstance.currentLevel = pendingLevelIndex;
+          const option = findOptionByVariantIndex(pendingLevelIndex);
+          if (option) {
+            qualitySelect.value = option.value;
+            setStatus(`已切换到 ${option.textContent}。`);
+          }
+        } else {
+          hlsInstance.currentLevel = -1;
+          setStatus("使用自动画质。");
+        }
+      } else {
+        hlsInstance.currentLevel = -1;
+        setStatus("已使用 hls.js 准备播放。");
+      }
+
+      pendingLevelIndex = null;
       cleanupListeners();
       resolve();
     };
@@ -135,6 +256,30 @@ function setupWithHlsJs(manifestUrl) {
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, handleManifestParsed);
     hlsInstance.on(Hls.Events.ERROR, handleError);
   });
+}
+
+function setupNativePlayback(manifestUrl) {
+  videoEl.src = manifestUrl;
+  videoEl.addEventListener(
+    "error",
+    () => {
+      setStatus("原生播放器加载失败，请确认流可用。");
+    },
+    { once: true },
+  );
+}
+
+async function loadVariants(manifestUrl) {
+  const response = await fetch(manifestUrl, { mode: "cors" });
+  if (!response.ok) {
+    throw new Error(`无法获取播放列表：HTTP ${response.status}`);
+  }
+  const manifest = await response.text();
+  const parsed = parseMasterPlaylist(manifest, manifestUrl);
+  if (!parsed.length) {
+    throw new Error("未在播放列表中检测到多码率信息。");
+  }
+  return parsed;
 }
 
 function mapLevelsToVariants(levels, manifestUrl) {
@@ -181,70 +326,13 @@ function normalizeCodecs(codecs) {
   return typeof codecs === "string" ? codecs : "";
 }
 
-async function loadVariants(manifestUrl) {
-  const response = await fetch(manifestUrl, { mode: "cors" });
-  if (!response.ok) {
-    throw new Error(`无法获取播放列表：HTTP ${response.status}`);
-  }
-  const manifest = await response.text();
-  const parsed = parseMasterPlaylist(manifest, manifestUrl);
-  if (!parsed.length) {
-    throw new Error("未在播放列表中检测到多码率信息。");
-  }
-  return parsed;
-}
-
-function parseMasterPlaylist(content, manifestUrl) {
-  const lines = content.split(/\r?\n/);
-  const base = new URL(manifestUrl);
-  const results = [];
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim();
-    if (!line.startsWith("#EXT-X-STREAM-INF")) {
-      continue;
-    }
-    const attributes = parseExtInfAttributes(line);
-    let uriLine = lines[i + 1] ? lines[i + 1].trim() : "";
-
-    while (uriLine.startsWith("#")) {
-      i += 1;
-      uriLine = lines[i + 1] ? lines[i + 1].trim() : "";
-    }
-
-    if (!uriLine) {
-      continue;
-    }
-
-    const absoluteUri = new URL(uriLine, base).toString();
-    const variant = {
-      uri: absoluteUri,
-      bandwidth: numberOrNull(attributes.BANDWIDTH),
-      averageBandwidth: numberOrNull(attributes["AVERAGE-BANDWIDTH"]),
-      resolution: attributes.RESOLUTION || "",
-      frameRate: numberOrNull(attributes["FRAME-RATE"]),
-      codecs: attributes.CODECS ? stripQuotes(attributes.CODECS) : "",
-      videoRange: attributes["VIDEO-RANGE"] ? stripQuotes(attributes["VIDEO-RANGE"]) : "",
-    };
-    results.push(variant);
+function populateQualityOptions(list, { preserveSelection = false } = {}) {
+  if (!qualitySelect) {
+    return;
   }
 
-  return results;
-}
+  const targetValue = preserveSelection ? qualitySelect.value : "auto";
 
-function parseExtInfAttributes(line) {
-  const attributes = {};
-  const attributeString = line.substring(line.indexOf(":") + 1);
-  const regex = /([A-Z0-9-]+)=("[^"]+"|[^,]*)/g;
-  let match = regex.exec(attributeString);
-  while (match) {
-    attributes[match[1]] = match[2];
-    match = regex.exec(attributeString);
-  }
-  return attributes;
-}
-
-function populateQualityOptions(list) {
   qualitySelect.innerHTML = "";
   addQualityOption("自动", "auto");
 
@@ -255,17 +343,16 @@ function populateQualityOptions(list) {
   });
 
   qualitySelect.disabled = list.length === 0;
-  qualitySelect.selectedIndex = 0;
+
+  if (qualitySelect.querySelector(`option[value="${targetValue}"]`)) {
+    qualitySelect.value = targetValue;
+  } else {
+    qualitySelect.selectedIndex = 0;
+  }
 
   if (!qualitySelect.dataset.bound) {
     qualitySelect.addEventListener("change", handleQualityChange);
     qualitySelect.dataset.bound = "true";
-  }
-  if (!reloadButton.dataset.bound) {
-    reloadButton.addEventListener("click", () => {
-      void reloadPlayer();
-    });
-    reloadButton.dataset.bound = "true";
   }
 }
 
@@ -328,12 +415,14 @@ function handleQualityChange(event) {
       if (hlsInstance && hlsInstance.levels && hlsInstance.levels.length) {
         hlsInstance.currentLevel = -1;
       }
+      pendingLevelIndex = null;
       setStatus("使用自动画质。");
       return;
     }
     const levelIndex = getVariantIndexFromOption(selectedOption);
     if (levelIndex !== null && hlsInstance && hlsInstance.levels && levelIndex < hlsInstance.levels.length) {
       hlsInstance.currentLevel = levelIndex;
+      pendingLevelIndex = levelIndex;
       setStatus(`已切换到 ${selectedOption.textContent}。`);
     }
     return;
@@ -345,6 +434,7 @@ function handleQualityChange(event) {
       void videoEl.play().catch((error) => {
         console.warn("Playback blocked on auto selection", error);
       });
+      pendingLevelIndex = null;
       setStatus("使用自动画质。");
       return;
     }
@@ -357,34 +447,20 @@ function handleQualityChange(event) {
     void videoEl.play().catch((error) => {
       console.warn("Playback blocked on manual selection", error);
     });
+    pendingLevelIndex = null;
     setStatus(`已切换到 ${selectedOption.textContent}。`);
   }
 }
 
-async function reloadPlayer() {
-  setStatus("重新载入流…");
-  const previousValue = qualitySelect.value;
-  try {
-    await setupPlayback(currentSourceUrl, { forceReload: true });
-    const optionExists = Boolean(qualitySelect.querySelector(`option[value="${previousValue}"]`));
-    qualitySelect.value = optionExists ? previousValue : "auto";
-    applyQualitySelection();
-  } catch (error) {
-    console.error(error);
-    setStatus("重新载入失败，请检查网络。");
+function applyQualitySelection() {
+  if (!qualitySelect) {
+    return;
   }
-}
-
-function setupNativePlayback(manifestUrl) {
-  playbackMode = "native";
-  videoEl.src = manifestUrl;
-  videoEl.addEventListener(
-    "error",
-    () => {
-      setStatus("原生播放器加载失败，请确认流可用。");
-    },
-    { once: true },
-  );
+  const selectedOption = qualitySelect.selectedOptions[0];
+  if (!selectedOption) {
+    return;
+  }
+  handleQualityChange({ target: qualitySelect });
 }
 
 function cleanupPlayer() {
@@ -392,6 +468,7 @@ function cleanupPlayer() {
     hlsInstance.destroy();
     hlsInstance = null;
   }
+  playbackMode = "idle";
   videoEl.removeAttribute("src");
   videoEl.load();
 }
@@ -402,17 +479,54 @@ function setStatus(message) {
   }
 }
 
-function applyQualitySelection() {
-  const selectedOption = qualitySelect.selectedOptions[0];
-  if (!selectedOption) {
-    return;
+function parseMasterPlaylist(content, manifestUrl) {
+  const lines = content.split(/\r?\n/);
+  const base = new URL(manifestUrl);
+  const results = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i].trim();
+    if (!line.startsWith("#EXT-X-STREAM-INF")) {
+      continue;
+    }
+    const attributes = parseExtInfAttributes(line);
+    let uriLine = lines[i + 1] ? lines[i + 1].trim() : "";
+
+    while (uriLine.startsWith("#")) {
+      i += 1;
+      uriLine = lines[i + 1] ? lines[i + 1].trim() : "";
+    }
+
+    if (!uriLine) {
+      continue;
+    }
+
+    const absoluteUri = new URL(uriLine, base).toString();
+    const variant = {
+      uri: absoluteUri,
+      bandwidth: numberOrNull(attributes.BANDWIDTH),
+      averageBandwidth: numberOrNull(attributes["AVERAGE-BANDWIDTH"]),
+      resolution: attributes.RESOLUTION || "",
+      frameRate: numberOrNull(attributes["FRAME-RATE"]),
+      codecs: attributes.CODECS ? stripQuotes(attributes.CODECS) : "",
+      videoRange: attributes["VIDEO-RANGE"] ? stripQuotes(attributes["VIDEO-RANGE"]) : "",
+    };
+    results.push(variant);
   }
-  handleQualityChange({ target: qualitySelect });
+
+  return results;
 }
 
-function getVariantIndexFromOption(option) {
-  const variantIndex = Number(option.dataset.variantIndex);
-  return Number.isFinite(variantIndex) ? variantIndex : null;
+function parseExtInfAttributes(line) {
+  const attributes = {};
+  const attributeString = line.substring(line.indexOf(":") + 1);
+  const regex = /([A-Z0-9-]+)=("[^"]+"|[^,]*)/g;
+  let match = regex.exec(attributeString);
+  while (match) {
+    attributes[match[1]] = match[2];
+    match = regex.exec(attributeString);
+  }
+  return attributes;
 }
 
 function numberOrNull(value) {
@@ -429,30 +543,31 @@ function stripQuotes(value) {
 }
 
 function resolveUrl(spec) {
-  try {
-    return new URL(spec, window.location.href).toString();
-  } catch (error) {
-    console.warn("无法解析地址，使用默认示例流。", error);
-    return REMOTE_STREAM_URL;
-  }
+  const trimmed = (spec || "").trim();
+  const candidate = trimmed || REMOTE_STREAM_URL;
+  const parsed = new URL(candidate, window.location.href);
+  return parsed.toString();
 }
 
 function ensureProxy(url) {
   if (!isAbsoluteUrl(url)) {
     return url;
   }
+  const origin = window.location.origin;
   try {
     const parsed = new URL(url);
-    if (parsed.origin === window.location.origin) {
+    if (parsed.origin === origin) {
       return url;
     }
-  } catch {
+  } catch (error) {
+    console.warn("Failed to parse URL for proxy check.", error);
     return url;
   }
-  if (url.startsWith(`${window.location.origin}${PROXY_PREFIX}`) || url.startsWith(PROXY_PREFIX)) {
+  const alreadyProxied = url.startsWith(`${origin}${PROXY_PREFIX}`) || url.startsWith(PROXY_PREFIX);
+  if (alreadyProxied) {
     return url;
   }
-  return `${window.location.origin}${PROXY_PREFIX}${url}`;
+  return `${origin}${PROXY_PREFIX}${url}`;
 }
 
 function isAbsoluteUrl(spec) {
@@ -462,4 +577,46 @@ function isAbsoluteUrl(spec) {
   } catch {
     return false;
   }
+}
+
+function persistStateToUrl(src, proxyFlag) {
+  const params = new URLSearchParams(window.location.search);
+  if (src && src !== REMOTE_STREAM_URL) {
+    params.set("src", src);
+  } else {
+    params.delete("src");
+  }
+
+  if (!proxyFlag) {
+    params.set("proxy", "0");
+  } else {
+    params.delete("proxy");
+  }
+
+  const query = params.toString();
+  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", nextUrl);
+}
+
+function getVariantIndexFromOption(option) {
+  const variantIndex = Number(option.dataset.variantIndex);
+  return Number.isFinite(variantIndex) ? variantIndex : null;
+}
+
+function getSelectedVariantIndex() {
+  if (!qualitySelect) {
+    return null;
+  }
+  const option = qualitySelect.selectedOptions[0];
+  if (!option || option.value === "auto") {
+    return null;
+  }
+  return getVariantIndexFromOption(option);
+}
+
+function findOptionByVariantIndex(index) {
+  if (!qualitySelect) {
+    return null;
+  }
+  return qualitySelect.querySelector(`option[data-variant-index="${index}"]`);
 }
