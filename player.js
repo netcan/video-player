@@ -3,6 +3,7 @@ const PROXY_PREFIX = "/proxy/";
 
 const qualitySelect = document.getElementById("qualitySelect");
 const reloadButton = document.getElementById("reloadButton");
+const fullscreenButton = document.getElementById("fullscreenButton");
 const statusLabel = document.getElementById("status");
 const videoEl = document.getElementById("liveVideo");
 const streamForm = document.getElementById("streamForm");
@@ -77,6 +78,13 @@ function initControls() {
       void reloadPlayer();
     });
     reloadButton.dataset.bound = "true";
+  }
+
+  if (fullscreenButton && !fullscreenButton.dataset.bound) {
+    fullscreenButton.addEventListener("click", toggleFullscreen);
+    fullscreenButton.dataset.bound = "true";
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
   }
 }
 
@@ -1047,4 +1055,57 @@ async function ensureKeyPoster(key) {
     videoEl.removeAttribute("poster");
   }
   return null;
+}
+
+function toggleFullscreen() {
+  if (!videoEl) {
+    return;
+  }
+  if (isFullscreen()) {
+    exitFullscreen();
+  } else {
+    requestFullscreen(videoEl);
+  }
+}
+
+function requestFullscreen(element) {
+  if (element.requestFullscreen) {
+    void element.requestFullscreen();
+  } else if (element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen();
+  } else if (element.msRequestFullscreen) {
+    element.msRequestFullscreen();
+  }
+}
+
+function exitFullscreen() {
+  if (document.exitFullscreen) {
+    void document.exitFullscreen();
+  } else if (document.webkitExitFullscreen) {
+    document.webkitExitFullscreen();
+  } else if (document.msExitFullscreen) {
+    document.msExitFullscreen();
+  }
+}
+
+function isFullscreen() {
+  return Boolean(
+    document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement,
+  );
+}
+
+function handleFullscreenChange() {
+  if (!fullscreenButton) {
+    return;
+  }
+  const active = isFullscreen();
+  fullscreenButton.textContent = active ? "退出全屏" : "全屏";
+  fullscreenButton.setAttribute("aria-pressed", active ? "true" : "false");
+  if (active) {
+    setStatus("已进入全屏模式。");
+  } else {
+    setStatus("已退出全屏模式。");
+  }
 }
