@@ -230,6 +230,7 @@ function updateStreamOptionSelect() {
   if (!streamOptions.length || streamOptions.length === 1) {
     streamOptionContainer.hidden = true;
     streamOptionSelect.disabled = true;
+    streamOptionSelect.value = "";
     return;
   }
 

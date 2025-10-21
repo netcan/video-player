@@ -52,6 +52,10 @@ body {
   background: #11131f;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .controls {
   display: flex;
   flex-wrap: wrap;
