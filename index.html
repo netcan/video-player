@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEVC/HDR 直播播放器</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script defer src="./player.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <h1>直播流播放器</h1>
+      <p class="subtitle">支持 HEVC / HDR，自动识别多码率</p>
+    </header>
+    <section class="player-container">
+      <video
+        id="liveVideo"
+        class="video"
+        controls
+        playsinline
+        webkit-playsinline
+        crossorigin="anonymous"
+        preload="none"
+        poster=""
+      ></video>
+      <div class="controls">
+        <label for="qualitySelect">画质</label>
+        <select id="qualitySelect" disabled>
+          <option value="auto">自动</option>
+        </select>
+        <button id="reloadButton" type="button">重新载入</button>
+      </div>
+      <div id="status" class="status" role="status"></div>
+    </section>
+  </main>
+</body>
+</html>
