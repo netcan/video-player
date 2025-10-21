@@ -747,11 +747,17 @@ async function selectPosterImage(streamUrl) {
   }
 
   const candidates = buildPosterCandidates(parsed);
-  for (const candidate of candidates) {
+  const attemptUrls = buildPosterAttemptUrls(candidates);
+  for (const candidate of attemptUrls) {
     // eslint-disable-next-line no-await-in-loop
-    const exists = await doesImageExist(candidate);
+    const exists = await doesImageExist(candidate.url);
     if (exists) {
-      return candidate;
+      if (candidate.sameOrigin || candidate.allowCrossOrigin) {
+        return candidate.url;
+      }
+      if (!candidate.sameOrigin) {
+        console.warn("Poster found but cross-origin without proxy; skipping to avoid CORS warnings.", candidate.url);
+      }
     }
   }
   return null;
@@ -776,9 +782,32 @@ function buildPosterCandidates(url) {
   return Array.from(candidates);
 }
 
+function buildPosterAttemptUrls(candidates) {
+  const attempts = [];
+  const seen = new Set();
+  candidates.forEach((remoteUrl) => {
+    if (!remoteUrl) {
+      return;
+    }
+    const proxied = proxyEnabled ? ensureProxy(remoteUrl) : remoteUrl;
+    const proxiedSameOrigin = isSameOriginUrl(proxied);
+    if (proxiedSameOrigin && !seen.has(proxied)) {
+      attempts.push({ url: proxied, sameOrigin: true, allowCrossOrigin: false });
+      seen.add(proxied);
+    }
+    if (!seen.has(remoteUrl)) {
+      const allowCrossOrigin = !proxyEnabled;
+      attempts.push({ url: remoteUrl, sameOrigin: isSameOriginUrl(remoteUrl), allowCrossOrigin });
+      seen.add(remoteUrl);
+    }
+  });
+  return attempts;
+}
+
 function doesImageExist(url) {
   return new Promise((resolve) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(true);
     img.onerror = () => resolve(false);
     img.src = url;
@@ -791,4 +820,13 @@ function isLikelyAudioStream(url) {
   }
   const lower = url.toLowerCase();
   return lower.includes("hls_fm") || lower.includes("audio") || lower.includes("radio") || lower.includes("podcast");
+}
+
+function isSameOriginUrl(spec) {
+  try {
+    const parsed = new URL(spec, window.location.href);
+    return parsed.origin === window.location.origin;
+  } catch {
+    return false;
+  }
 }
