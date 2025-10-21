@@ -25,6 +25,17 @@
 4. 页面上的“流类型”下拉框会列出可用源（HDR/SDR/音频等），实时切换无需刷新。
 5. 仍可通过地址栏参数 `?src=` 指定初始流或使用 `?key=` 指定初始 key；若需禁用代理，在地址栏或表单里取消勾选，或加 `&proxy=0`。
 
+### Key 模式规则
+当输入框内容匹配 `^[A-Za-z0-9_-]+$` 时，会启用 key 模式并按照以下逻辑执行：
+1. 依次探测并记录可用的播放源：
+   - `https://zhiyb.me/hls_ffmpeg/${key}-hevc.m3u8`
+   - `https://zhiyb.me/hls_ffmpeg/${key}.m3u8`
+   - `https://zhiyb.me/hls_data/${key}.m3u8`
+   - `https://zhiyb.me/hls_fm/${key}.m3u8`
+2. 任意源可访问即加入“流类型”下拉框；若同时存在 HEVC 与 SDR，则生成“HDR (HEVC)”与“SDR (AVC)”选项，方便比较。
+3. 封面图片默认从 `https://zhiyb.me/hls_data/${key}.png` 获取，若代理开启则自动走 `/proxy/` 以解决 CORS；纯音频流会保持方形布局并继续尝试同名 `.jpg/.jpeg/.webp`。
+4. 地址栏会同步更新 `?key=...` 和 `?variant=` 参数，刷新后可直接恢复同一 key 与流类型。
+
 ## 跨域说明
 - 默认情况下，所有非同源的 `m3u8` 流和分片请求都会通过 `/proxy/...` 转发，自动带上允许跨域的响应头，解决 Chrome/Edge 的 CORS 限制。
 - 在支持 HEVC/HDR 的 Safari（含 iPhone/iPad）上，即使不使用代理也能播放；如果想强制直连，可加 `proxy=0`。
