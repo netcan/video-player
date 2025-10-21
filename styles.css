@@ -117,6 +117,21 @@ body {
   color: #c5c5d3;
 }
 
+.stream-form__options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stream-form__options select {
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-width: 180px;
+}
+
 .controls select {
   background: rgba(255, 255, 255, 0.06);
   color: inherit;

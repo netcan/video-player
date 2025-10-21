@@ -40,8 +40,12 @@
         </div>
         <label class="stream-form__proxy">
           <input id="proxyToggle" type="checkbox" checked />
-          使用本地代理（绕过 CORS）
-        </label>
+            使用本地代理（绕过 CORS）
+          </label>
+        <div id="streamOptions" class="stream-form__options" hidden>
+          <label for="streamOptionSelect">流类型</label>
+          <select id="streamOptionSelect"></select>
+        </div>
       </form>
       <div class="controls">
         <label for="qualitySelect">画质</label>
