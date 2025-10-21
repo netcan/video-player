@@ -1,4 +1,5 @@
-const DEFAULT_STREAM_URL = "https://zhiyb.me/hls_ffmpeg/stream-hevc.m3u8";
+const REMOTE_STREAM_URL = "https://zhiyb.me/hls_ffmpeg/stream-hevc.m3u8";
+const PROXY_PREFIX = "/proxy/";
 
 const qualitySelect = document.getElementById("qualitySelect");
 const reloadButton = document.getElementById("reloadButton");
@@ -28,15 +29,14 @@ async function initPlayer() {
 
 function getStreamUrl() {
   const params = new URLSearchParams(window.location.search);
+  const disableProxy = params.get("proxy") === "0" || params.get("noProxy") === "1";
   const customSrc = params.get("src");
-  if (customSrc) {
-    try {
-      return new URL(customSrc, window.location.href).toString();
-    } catch (error) {
-      console.warn("Illegal custom src parameter, fallback to default.", error);
-    }
+  const baseUrl = customSrc || REMOTE_STREAM_URL;
+  const resolved = resolveUrl(baseUrl);
+  if (disableProxy) {
+    return resolved;
   }
-  return DEFAULT_STREAM_URL;
+  return ensureProxy(resolved);
 }
 
 async function setupPlayback(manifestUrl, { forceReload = false } = {}) {
@@ -426,4 +426,40 @@ function numberOrNull(value) {
 
 function stripQuotes(value) {
   return value.replace(/^"(.*)"$/, "$1");
+}
+
+function resolveUrl(spec) {
+  try {
+    return new URL(spec, window.location.href).toString();
+  } catch (error) {
+    console.warn("无法解析地址，使用默认示例流。", error);
+    return REMOTE_STREAM_URL;
+  }
+}
+
+function ensureProxy(url) {
+  if (!isAbsoluteUrl(url)) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.origin === window.location.origin) {
+      return url;
+    }
+  } catch {
+    return url;
+  }
+  if (url.startsWith(`${window.location.origin}${PROXY_PREFIX}`) || url.startsWith(PROXY_PREFIX)) {
+    return url;
+  }
+  return `${window.location.origin}${PROXY_PREFIX}${url}`;
+}
+
+function isAbsoluteUrl(spec) {
+  try {
+    new URL(spec);
+    return true;
+  } catch {
+    return false;
+  }
 }
