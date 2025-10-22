@@ -305,9 +305,12 @@ async function applyStreamOption(index, { updateHistory = true, initialLoad = fa
   } catch (error) {
     console.error(error);
     setStatus("加载流失败，请检查网络或地址。");
+    updateStreamPanelSummary();
+    return;
   }
 
   updateStreamPanelSummary();
+  collapseStreamPanelAfterSubmit();
 }
 
 async function reloadPlayer() {
@@ -1164,4 +1167,13 @@ function updateStreamPanelSummary() {
     return;
   }
   streamPanelSummary.textContent = "播放源设置";
+}
+
+function collapseStreamPanelAfterSubmit() {
+  if (!streamPanel) {
+    return;
+  }
+  if (window.innerWidth < 640) {
+    streamPanel.open = false;
+  }
 }

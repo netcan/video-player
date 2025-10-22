@@ -79,6 +79,9 @@ body {
   border-radius: 12px;
   background: rgba(15, 16, 23, 0.75);
   padding: 12px 14px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 .stream-panel__summary {
@@ -119,6 +122,7 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .stream-form__input {
@@ -129,6 +133,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 8px 12px;
+  font-size: 0.95rem;
 }
 
 .stream-form__submit {
@@ -219,7 +224,7 @@ body {
   }
 
   .stream-form {
-    gap: 8px;
+    gap: 6px;
   }
 
   .stream-form__label {
@@ -227,13 +232,15 @@ body {
   }
 
   .stream-form__row {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 6px;
   }
 
   .stream-form__submit {
-    width: 100%;
-    padding: 10px 14px;
+    width: auto;
+    min-width: 88px;
+    padding: 8px 12px;
   }
 
   .video.video--audio {
@@ -242,6 +249,7 @@ body {
 
   .stream-panel {
     padding: 8px 10px;
+    max-width: 100%;
   }
 
   .stream-panel__summary {
@@ -250,5 +258,6 @@ body {
 
   .stream-form__proxy {
     font-size: 0.8rem;
+    justify-content: space-between;
   }
 }
