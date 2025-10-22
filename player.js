@@ -153,7 +153,8 @@ async function loadStreamFromInput(rawInput, { updateInputValue = true, persistS
   } else {
     currentKey = null;
     keyPosterUrl = null;
-    restoreDefaultPoster();
+    posterRequestToken += 1;
+    videoEl.removeAttribute("poster");
     try {
       const resolved = resolveUrl(candidateValue);
       const remote = stripProxyPrefix(resolved);
@@ -280,7 +281,12 @@ async function applyStreamOption(index, { updateHistory = true, initialLoad = fa
   pendingLevelIndex = null;
   variants = [];
   isAudioOnlyStream = false;
-  restoreDefaultPoster();
+  posterRequestToken += 1;
+  if (keyPosterUrl) {
+    videoEl.poster = keyPosterUrl;
+  } else {
+    videoEl.removeAttribute("poster");
+  }
 
   if (updateHistory) {
     persistStateToUrl({
@@ -310,6 +316,7 @@ async function applyStreamOption(index, { updateHistory = true, initialLoad = fa
   }
 
   updateStreamPanelSummary();
+  void updatePosterFromStream();
   collapseStreamPanelAfterSubmit();
 }
 
@@ -897,29 +904,23 @@ function handleVariantsUpdated(list) {
 function setAudioOnlyState(enable) {
   if (isAudioOnlyStream === enable) {
     if (enable) {
-      void updatePosterForAudioStream();
+      videoEl.classList.add("video--audio");
+    } else {
+      videoEl.classList.remove("video--audio");
     }
     return;
   }
   isAudioOnlyStream = enable;
-  if (!enable) {
-    posterRequestToken += 1;
-    videoEl.classList.remove("video--audio");
-    restoreDefaultPoster();
-    return;
-  }
-  void updatePosterForAudioStream();
-}
-
-function restoreDefaultPoster() {
-  if (keyPosterUrl) {
-    videoEl.poster = keyPosterUrl;
+  if (enable) {
+    videoEl.classList.add("video--audio");
+    setStatus("检测到纯音频流，已显示封面。");
   } else {
-    videoEl.removeAttribute("poster");
+    videoEl.classList.remove("video--audio");
   }
+  void updatePosterFromStream();
 }
 
-async function updatePosterForAudioStream() {
+async function updatePosterFromStream() {
   const token = ++posterRequestToken;
   const poster = await selectPosterImage(lastRemoteSource);
   if (posterRequestToken !== token) {
@@ -933,9 +934,10 @@ async function updatePosterForAudioStream() {
   } else {
     videoEl.removeAttribute("poster");
   }
-  videoEl.classList.add("video--audio");
   if (isAudioOnlyStream) {
-    setStatus("检测到纯音频流，已显示封面。");
+    videoEl.classList.add("video--audio");
+  } else {
+    videoEl.classList.remove("video--audio");
   }
 }
 
@@ -1060,17 +1062,13 @@ async function ensureKeyPoster(key) {
     const exists = await doesImageExist(url);
     if (exists) {
       keyPosterUrl = url;
-      if (!isAudioOnlyStream) {
-        videoEl.poster = keyPosterUrl;
-      }
+      videoEl.poster = keyPosterUrl;
       return keyPosterUrl;
     }
   }
 
   keyPosterUrl = null;
-  if (!isAudioOnlyStream) {
-    videoEl.removeAttribute("poster");
-  }
+  videoEl.removeAttribute("poster");
   return null;
 }
 
