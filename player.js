@@ -247,9 +247,7 @@ function updateStreamOptionSelect() {
 
   streamOptionSelect.innerHTML = "";
 
-  const visibleOptions = streamOptions
-    .map((option, index) => ({ option, index }))
-    .filter(({ option }) => !isManifestQualityOption(option));
+  const visibleOptions = streamOptions.map((option, index) => ({ option, index }));
 
   if (!visibleOptions.length) {
     streamOptionContainer.hidden = true;
