@@ -34,7 +34,7 @@
    - `https://zhiyb.me/hls_ffmpeg/${key}.m3u8`
    - `https://zhiyb.me/hls_data/${key}.m3u8`
    - `https://zhiyb.me/hls_fm/${key}.m3u8`
-2. 任意源可访问即加入“流类型”下拉框；若同时存在 HEVC 与 SDR，则生成“HDR (HEVC)”与“SDR (AVC)”选项，方便比较。
+2. 任意源可访问即加入“流类型”下拉框；若检测到 HEVC/SDR 组合，会直接在画质选择中出现“HDR (HEVC)”与“SDR (AVC)”选项进行切换。
 3. 封面图片默认从 `https://zhiyb.me/hls_data/${key}.png` 获取，若代理开启则自动走 `/proxy/` 以解决 CORS；纯音频流会保持方形布局并继续尝试同名 `.jpg/.jpeg/.webp`。
 4. 地址栏会同步更新 `?key=...` 和 `?variant=` 参数，刷新后可直接恢复同一 key 与流类型。
 
