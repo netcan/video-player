@@ -6,6 +6,7 @@ const reloadButton = document.getElementById("reloadButton");
 const fullscreenButton = document.getElementById("fullscreenButton");
 const statusLabel = document.getElementById("status");
 const videoEl = document.getElementById("liveVideo");
+const pageRoot = document.querySelector(".page");
 const streamPanel = document.getElementById("streamPanel");
 const streamPanelSummary = streamPanel ? streamPanel.querySelector(".stream-panel__summary") : null;
 const streamForm = document.getElementById("streamForm");
@@ -30,6 +31,7 @@ let pendingLevelIndex = null;
 let isAudioOnlyStream = false;
 let posterRequestToken = 0;
 let initialVariantIndex = null;
+let isWideMode = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   initializeStateFromQuery();
@@ -87,10 +89,9 @@ function initControls() {
   }
 
   if (fullscreenButton && !fullscreenButton.dataset.bound) {
-    fullscreenButton.addEventListener("click", toggleFullscreen);
+    fullscreenButton.addEventListener("click", toggleWideMode);
     fullscreenButton.dataset.bound = "true";
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    updateWideModeButton(false);
   }
 
   if (streamPanel && !streamPanel.dataset.initialized) {
@@ -1108,57 +1109,21 @@ async function ensureKeyPoster(key) {
   return null;
 }
 
-function toggleFullscreen() {
-  if (!videoEl) {
-    return;
+function toggleWideMode() {
+  isWideMode = !isWideMode;
+  if (pageRoot) {
+    pageRoot.classList.toggle("page--wide", isWideMode);
   }
-  if (isFullscreen()) {
-    exitFullscreen();
-  } else {
-    requestFullscreen(videoEl);
-  }
+  updateWideModeButton(isWideMode);
+  setStatus(isWideMode ? "已进入宽屏模式。" : "已退出宽屏模式。");
 }
 
-function requestFullscreen(element) {
-  if (element.requestFullscreen) {
-    void element.requestFullscreen();
-  } else if (element.webkitRequestFullscreen) {
-    element.webkitRequestFullscreen();
-  } else if (element.msRequestFullscreen) {
-    element.msRequestFullscreen();
-  }
-}
-
-function exitFullscreen() {
-  if (document.exitFullscreen) {
-    void document.exitFullscreen();
-  } else if (document.webkitExitFullscreen) {
-    document.webkitExitFullscreen();
-  } else if (document.msExitFullscreen) {
-    document.msExitFullscreen();
-  }
-}
-
-function isFullscreen() {
-  return Boolean(
-    document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.msFullscreenElement,
-  );
-}
-
-function handleFullscreenChange() {
+function updateWideModeButton(active) {
   if (!fullscreenButton) {
     return;
   }
-  const active = isFullscreen();
-  fullscreenButton.textContent = active ? "退出全屏" : "全屏";
+  fullscreenButton.textContent = active ? "退出宽屏" : "宽屏";
   fullscreenButton.setAttribute("aria-pressed", active ? "true" : "false");
-  if (active) {
-    setStatus("已进入全屏模式。");
-  } else {
-    setStatus("已退出全屏模式。");
-  }
 }
 
 function applyInitialPanelState() {

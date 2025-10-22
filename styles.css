@@ -19,6 +19,30 @@ body {
   gap: 24px;
 }
 
+.page--wide {
+  max-width: none;
+  width: 100%;
+  padding: 0;
+}
+
+.page--wide .player-container {
+  border-radius: 0;
+  margin: 0;
+  padding: 16px 0 24px;
+  box-shadow: none;
+}
+
+.page--wide .video {
+  border-radius: 0;
+  width: 100%;
+}
+
+.page--wide .controls,
+.page--wide .stream-panel {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .header h1 {
   margin: 0;
   font-size: 1.75rem;
