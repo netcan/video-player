@@ -20,7 +20,6 @@ let variants = [];
 let playbackMode = "idle"; // idle | mse | native | unsupported
 let proxyEnabled = true;
 let streamOptions = [];
-let manifestAlternatives = [];
 let activeOptionIndex = 0;
 let currentSourceUrl = "";
 let lastRemoteSource = "";
@@ -175,7 +174,6 @@ async function loadStreamFromInput(rawInput, { updateInputValue = true, persistS
   }
 
   streamOptions = options;
-  manifestAlternatives = recomputeManifestAlternatives(streamOptions);
   activeOptionIndex = selectedIndex;
   updateStreamOptionSelect();
 
@@ -287,7 +285,6 @@ async function applyStreamOption(index, { updateHistory = true, initialLoad = fa
   }
 
   activeOptionIndex = index;
-  manifestAlternatives = recomputeManifestAlternatives(streamOptions);
 
   const remote = option.remoteUrl;
   lastRemoteSource = remote;
@@ -561,15 +558,10 @@ function populateQualityOptions(list, { preserveSelection = false } = {}) {
     return;
   }
 
-  const previousValue = preserveSelection ? qualitySelect.value : null;
-  const manifestSelectionValue = getManifestSelectionValue();
+  const targetValue = preserveSelection ? qualitySelect.value : "auto";
 
   qualitySelect.innerHTML = "";
   addQualityOption("自动", "auto");
-
-  manifestAlternatives.forEach((alt, altIdx) => {
-    addManifestQualityOption(alt.label, altIdx, alt.streamIndex);
-  });
 
   list.forEach((variant, idx) => {
     const label = buildQualityLabel(variant);
@@ -577,12 +569,10 @@ function populateQualityOptions(list, { preserveSelection = false } = {}) {
     addQualityOption(label, value, idx);
   });
 
-  qualitySelect.disabled = list.length === 0 && manifestAlternatives.length === 0;
+  qualitySelect.disabled = list.length === 0;
 
-  if (previousValue && qualitySelect.querySelector(`option[value="${previousValue}"]`)) {
-    qualitySelect.value = previousValue;
-  } else if (manifestSelectionValue && qualitySelect.querySelector(`option[value="${manifestSelectionValue}"]`)) {
-    qualitySelect.value = manifestSelectionValue;
+  if (qualitySelect.querySelector(`option[value="${targetValue}"]`)) {
+    qualitySelect.value = targetValue;
   } else {
     qualitySelect.selectedIndex = 0;
   }
@@ -600,14 +590,6 @@ function addQualityOption(label, value, variantIndex = null) {
   if (variantIndex !== null) {
     option.dataset.variantIndex = variantIndex.toString();
   }
-  qualitySelect.appendChild(option);
-}
-
-function addManifestQualityOption(label, altIdx, streamIndex) {
-  const option = document.createElement("option");
-  option.value = manifestOptionValue(altIdx);
-  option.textContent = label;
-  option.dataset.manifestStreamIndex = streamIndex.toString();
   qualitySelect.appendChild(option);
 }
 
@@ -652,14 +634,6 @@ function buildQualityLabel(variant) {
 function handleQualityChange(event) {
   const selectedOption = event.target.selectedOptions[0];
   if (!selectedOption) {
-    return;
-  }
-
-  const manifestStreamIndex = getManifestStreamIndex(selectedOption);
-  if (manifestStreamIndex !== null) {
-    if (manifestStreamIndex !== activeOptionIndex) {
-      void applyStreamOption(manifestStreamIndex, { updateHistory: true });
-    }
     return;
   }
 
@@ -1151,9 +1125,7 @@ function updateStreamPanelSummary() {
   const current = streamOptions[activeOptionIndex];
   if (current) {
     let suffix = null;
-    if (manifestAlternatives.some((alt) => alt.streamIndex === activeOptionIndex)) {
-      suffix = current.label;
-    } else if (streamOptions.length > 1) {
+    if (streamOptions.length > 1) {
       suffix = current.label;
     } else if (currentKey) {
       suffix = currentKey;
@@ -1177,37 +1149,4 @@ function collapseStreamPanelAfterSubmit() {
   if (window.innerWidth < 640) {
     streamPanel.open = false;
   }
-}
-
-function recomputeManifestAlternatives(options) {
-  return options
-    .map((option, index) => ({ option, index }))
-    .filter(({ option }) => isManifestQualityOption(option))
-    .map(({ option, index }) => ({
-      label: option.label,
-      streamIndex: index,
-      type: option.type,
-    }));
-}
-
-function isManifestQualityOption(option) {
-  return option?.type === "hevc" || option?.type === "sdr";
-}
-
-function manifestOptionValue(altIdx) {
-  return `manifest-${altIdx}`;
-}
-
-function getManifestSelectionValue() {
-  const altIdx = manifestAlternatives.findIndex((alt) => alt.streamIndex === activeOptionIndex);
-  return altIdx >= 0 ? manifestOptionValue(altIdx) : null;
-}
-
-function getManifestStreamIndex(option) {
-  const value = option.dataset.manifestStreamIndex;
-  if (typeof value === "undefined") {
-    return null;
-  }
-  const idx = Number(value);
-  return Number.isFinite(idx) ? idx : null;
 }

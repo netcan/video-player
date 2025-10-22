@@ -183,19 +183,25 @@ body {
   color: #c5c5d3;
 }
 
-.stream-form__options {
+.stream-options {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-top: 8px;
 }
 
-.stream-form__options select {
+.stream-options select {
   background: rgba(255, 255, 255, 0.06);
   color: inherit;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 6px 12px;
   min-width: 180px;
+}
+
+.stream-options__label {
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .controls select {
@@ -279,5 +285,9 @@ body {
   .stream-form__proxy {
     font-size: 0.8rem;
     justify-content: space-between;
+  }
+
+  .stream-options {
+    margin-top: 10px;
   }
 }
