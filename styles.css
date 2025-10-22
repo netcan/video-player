@@ -218,12 +218,22 @@ body {
     font-size: 1.5rem;
   }
 
+  .stream-form {
+    gap: 8px;
+  }
+
+  .stream-form__label {
+    display: none;
+  }
+
   .stream-form__row {
     flex-direction: column;
+    gap: 6px;
   }
 
   .stream-form__submit {
     width: 100%;
+    padding: 10px 14px;
   }
 
   .video.video--audio {
@@ -231,10 +241,14 @@ body {
   }
 
   .stream-panel {
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
 
   .stream-panel__summary {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+  }
+
+  .stream-form__proxy {
+    font-size: 0.8rem;
   }
 }
