@@ -25,30 +25,33 @@
         preload="none"
         poster=""
       ></video>
-      <form id="streamForm" class="stream-form" autocomplete="off">
-        <label for="streamInput" class="stream-form__label">自定义流地址或 key</label>
-        <div class="stream-form__row">
-          <input
-            id="streamInput"
-            class="stream-form__input"
-            type="text"
-            inputmode="url"
-            autocomplete="off"
-            autocapitalize="none"
-            spellcheck="false"
-            placeholder="https://example.com/live.m3u8 或 key"
-          />
-          <button class="stream-form__submit" type="submit">播放</button>
-        </div>
-        <label class="stream-form__proxy">
-          <input id="proxyToggle" type="checkbox" checked />
+      <details id="streamPanel" class="stream-panel">
+        <summary class="stream-panel__summary">播放源设置</summary>
+        <form id="streamForm" class="stream-form" autocomplete="off">
+          <label for="streamInput" class="stream-form__label">自定义流地址或 key</label>
+          <div class="stream-form__row">
+            <input
+              id="streamInput"
+              class="stream-form__input"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="https://example.com/live.m3u8 或 key"
+            />
+            <button class="stream-form__submit" type="submit">播放</button>
+          </div>
+          <label class="stream-form__proxy">
+            <input id="proxyToggle" type="checkbox" checked />
             使用本地代理（绕过 CORS）
           </label>
-        <div id="streamOptions" class="stream-form__options" hidden>
-          <label for="streamOptionSelect">流类型</label>
-          <select id="streamOptionSelect"></select>
-        </div>
-      </form>
+          <div id="streamOptions" class="stream-form__options" hidden>
+            <label for="streamOptionSelect">流类型</label>
+            <select id="streamOptionSelect"></select>
+          </div>
+        </form>
+      </details>
       <div class="controls">
         <label for="qualitySelect">画质</label>
         <select id="qualitySelect" disabled>

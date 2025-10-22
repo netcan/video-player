@@ -6,6 +6,8 @@ const reloadButton = document.getElementById("reloadButton");
 const fullscreenButton = document.getElementById("fullscreenButton");
 const statusLabel = document.getElementById("status");
 const videoEl = document.getElementById("liveVideo");
+const streamPanel = document.getElementById("streamPanel");
+const streamPanelSummary = streamPanel ? streamPanel.querySelector(".stream-panel__summary") : null;
 const streamForm = document.getElementById("streamForm");
 const streamInput = document.getElementById("streamInput");
 const proxyToggle = document.getElementById("proxyToggle");
@@ -61,6 +63,9 @@ function initializeStateFromQuery() {
 function initControls() {
   if (streamInput) {
     streamInput.value = userInputValue;
+    streamInput.addEventListener("focus", () => {
+      openStreamPanelIfCollapsed();
+    });
   }
   if (proxyToggle) {
     proxyToggle.checked = proxyEnabled;
@@ -85,6 +90,11 @@ function initControls() {
     fullscreenButton.dataset.bound = "true";
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+  }
+
+  if (streamPanel && !streamPanel.dataset.initialized) {
+    applyInitialPanelState();
+    streamPanel.dataset.initialized = "true";
   }
 }
 
@@ -239,6 +249,7 @@ function updateStreamOptionSelect() {
     streamOptionContainer.hidden = true;
     streamOptionSelect.disabled = true;
     streamOptionSelect.value = "";
+    updateStreamPanelSummary();
     return;
   }
 
@@ -252,6 +263,7 @@ function updateStreamOptionSelect() {
   streamOptionSelect.disabled = false;
   streamOptionContainer.hidden = false;
   streamOptionSelect.value = activeOptionIndex.toString();
+  updateStreamPanelSummary();
 }
 
 async function applyStreamOption(index, { updateHistory = true, initialLoad = false } = {}) {
@@ -294,6 +306,8 @@ async function applyStreamOption(index, { updateHistory = true, initialLoad = fa
     console.error(error);
     setStatus("加载流失败，请检查网络或地址。");
   }
+
+  updateStreamPanelSummary();
 }
 
 async function reloadPlayer() {
@@ -1108,4 +1122,46 @@ function handleFullscreenChange() {
   } else {
     setStatus("已退出全屏模式。");
   }
+}
+
+function applyInitialPanelState() {
+  if (!streamPanel) {
+    return;
+  }
+  const preferCollapsed = window.innerWidth < 640;
+  if (preferCollapsed) {
+    streamPanel.open = false;
+  } else {
+    streamPanel.open = true;
+  }
+}
+
+function openStreamPanelIfCollapsed() {
+  if (streamPanel && !streamPanel.open) {
+    streamPanel.open = true;
+  }
+}
+
+function updateStreamPanelSummary() {
+  if (!streamPanelSummary) {
+    return;
+  }
+  const current = streamOptions[activeOptionIndex];
+  if (current) {
+    let suffix = null;
+    if (streamOptions.length > 1) {
+      suffix = current.label;
+    } else if (currentKey) {
+      suffix = currentKey;
+    } else if (current.label && current.label !== "自定义") {
+      suffix = current.label;
+    }
+    streamPanelSummary.textContent = suffix ? `播放源设置 · ${suffix}` : "播放源设置";
+    return;
+  }
+  if (currentKey) {
+    streamPanelSummary.textContent = `播放源设置 · ${currentKey}`;
+    return;
+  }
+  streamPanelSummary.textContent = "播放源设置";
 }
