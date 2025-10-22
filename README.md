@@ -2,6 +2,8 @@
 
 简易网页播放器示例，自动解析 HLS (m3u8) 多码率流，提供画质切换，兼容 HEVC/HDR 以及 iPhone Safari 原生播放。
 
+在线演示：https://zhiyb.me/hls/nvp/?key=tingfm_58
+
 ## 功能
 - 自动抓取播放列表的码率、分辨率、HDR/HEVC 信息，生成画质选项。
 - `hls.js`（浏览器支持 MSE 时）和 Safari 原生 HLS 双模式。
