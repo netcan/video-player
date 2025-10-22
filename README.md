@@ -4,6 +4,8 @@
 
 在线演示：https://zhiyb.me/hls/nvp/?key=tingfm_58
 
+> 本项目由 AI 助手（ChatGPT，Codex 模式）独立开发构建，包含 UI、播放器逻辑与文档内容。
+
 ## 功能
 - 自动抓取播放列表的码率、分辨率、HDR/HEVC 信息，生成画质选项。
 - `hls.js`（浏览器支持 MSE 时）和 Safari 原生 HLS 双模式。
