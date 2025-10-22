@@ -79,9 +79,6 @@ body {
   border-radius: 12px;
   background: rgba(15, 16, 23, 0.75);
   padding: 12px 14px;
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
 }
 
 .stream-panel__summary {
@@ -249,7 +246,6 @@ body {
 
   .stream-panel {
     padding: 8px 10px;
-    max-width: 100%;
   }
 
   .stream-panel__summary {
